@@ -10,11 +10,21 @@ android {
         applicationId 'com.hisaab.app'
         minSdk 26
         targetSdk 34
-        versionCode 1
+        versionCode((System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger())
         versionName '1.0'
     }
 
+    signingConfigs {
+        fixed {
+            storeFile file('hisaab.keystore')
+            storePassword 'hisaab123'
+            keyAlias 'hisaab'
+            keyPassword 'hisaab123'
+        }
+    }
+
     buildTypes {
+        debug { signingConfig signingConfigs.fixed }
         release { minifyEnabled false }
     }
 
