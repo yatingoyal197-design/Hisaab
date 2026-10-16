@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Hisaab</title>
+<style>
+/* Layout: three tabs (Home / History / People) on a bottom bar; dark ledger header on Home; sheets slide up for forms and details */
+:root{
+  --ink:#14212B; --ink-2:#22333F; --paper:#F3F5F7; --card:#FFFFFF;
+  --line:#DDE3E8; --muted:#66737D; --text:#14212B; --soft:#E9EDF0;
+  --accent:#E8A317; --accent-ink:#2A1E00; --accent-soft:#FBF0D6;
+  --danger:#C2412D; --ok:#2F8F5B; --ok-soft:#7FD3A4;
+  --f-display:"Roboto Condensed","Roboto",system-ui,sans-serif;
+  --f-body:"Roboto",system-ui,sans-serif;
+  --f-num:"Roboto Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;background:var(--paper);color:var(--text);font:15px/1.45 var(--f-body)}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.in-c{color:var(--ok)} .out-c{color:var(--danger)}
+
+header{background:var(--ink);color:#F3F5F7;padding:14px 18px 20px}
+.monthbar{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.monthbar h1{margin:0;font:600 17px var(--f-display);letter-spacing:.04em;text-transform:uppercase}
+.iconbtn{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:#C9D3DA}
+.iconbtn:active{background:var(--ink-2)}
+.iconbtn svg{width:22px;height:22px}
+.total-label{margin-top:16px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#93A3AE}
+.total{font:700 40px/1.1 var(--f-num);font-variant-numeric:tabular-nums;margin-top:2px;word-break:break-all}
+.total .rs{color:var(--accent);font-weight:500;margin-right:4px}
+.received{margin-top:6px;font-size:14px;color:#B7C3CB}
+.received b{color:var(--ok-soft);font-family:var(--f-num);font-weight:600}
+.budget{margin-top:14px}
+.budget-row{display:flex;justify-content:space-between;font-size:13px;color:#B7C3CB;gap:8px}
+.track{height:6px;background:var(--ink-2);border-radius:3px;margin-top:6px;overflow:hidden}
+.fill{height:100%;background:var(--accent);border-radius:3px;transition:width .3s}
+.fill.over{background:#E5664F}
+.headlinks{display:flex;gap:18px;margin-top:10px;flex-wrap:wrap}
+.headlinks button{font-size:13px;color:var(--accent);padding:6px 0}
+
+.pagehead{background:var(--ink);color:#F3F5F7;padding:18px 18px 16px}
+.pagehead h1{margin:0;font:600 22px var(--f-display);letter-spacing:.02em}
+.pagehead p{margin:4px 0 0;color:#93A3AE;font-size:13px}
+
+main{padding:16px 16px 150px;display:flex;flex-direction:column;gap:18px}
+.section-title{font:600 12px var(--f-display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+
+.review{display:flex;align-items:center;gap:12px;background:var(--accent-soft);border:1px solid #EBCB7E;border-radius:14px;padding:12px 14px;text-align:left;width:100%}
+.review .n{font:700 22px var(--f-num);color:var(--accent-ink);min-width:28px;text-align:center}
+.review .info{flex:1;min-width:0}
+.review b{display:block;color:var(--accent-ink)}
+.review span{font-size:13px;color:#6A5420}
+
+.split{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.stack{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--line);gap:2px}
+.stack span{display:block;height:100%}
+.cats{list-style:none;margin:12px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:8px 14px}
+.cats li{display:flex;align-items:center;gap:8px;font-size:13px;min-width:0}
+.cats .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+
+.day{display:flex;flex-direction:column}
+.dayhead{display:flex;justify-content:space-between;align-items:baseline;padding:0 2px 6px;border-bottom:1px solid var(--line)}
+.dayhead b{font:600 14px var(--f-display);letter-spacing:.02em}
+.dayhead span{font-size:13px;color:var(--muted)}
+.entry{display:flex;align-items:center;gap:12px;padding:11px 2px;border-bottom:1px solid var(--line);text-align:left;width:100%}
+.entry:active{background:var(--soft)}
+.badge{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font:700 14px var(--f-display);color:#fff;flex:none}
+.entry .info{flex:1;min-width:0}
+.entry .t{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.entry .t.unnamed{color:var(--muted);font-style:italic}
+.entry .s{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.tag{font-size:10px;letter-spacing:.06em;font-weight:700;padding:1px 5px;border-radius:4px;background:#E6ECF0;color:var(--muted);flex:none}
+.tag.name{background:var(--accent-soft);color:#7A5A00}
+.entry .amt{font-weight:600;flex:none}
+.entry .amt.in{color:var(--ok)}
+
+.search{display:flex;gap:8px;flex-direction:column}
+.filters{display:flex;gap:8px;flex-wrap:wrap}
+.sumrow{display:flex;gap:16px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.sumrow b{font-family:var(--f-num)}
+
+.person{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--card);border:1px solid var(--line);border-radius:14px;text-align:left;width:100%}
+.person .info{flex:1;min-width:0}
+.person .nm{font-weight:600}
+.person .s{font-size:12px;color:var(--muted)}
+.person .bal{text-align:right;flex:none}
+.person .bal b{display:block;font-family:var(--f-num)}
+.person .bal span{font-size:11px;color:var(--muted)}
+.avatar{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font:700 16px var(--f-display);color:#fff;background:var(--ink-2);flex:none}
+.netcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center}
+.netcard div span{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.netcard div b{font:700 16px var(--f-num)}
+
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty strong{display:block;color:var(--text);font:600 18px var(--f-display);margin-bottom:6px}
+
+.fab{position:fixed;right:18px;bottom:82px;height:56px;padding:0 22px 0 18px;border-radius:28px;background:var(--accent);color:var(--accent-ink);font-weight:700;display:flex;align-items:center;gap:8px;box-shadow:0 6px 18px rgba(20,33,43,.28);z-index:5}
+.fab svg{width:22px;height:22px}
+.fab:active{transform:scale(.97)}
+
+nav.tabs{position:fixed;left:0;right:0;bottom:0;height:64px;background:var(--card);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr);z-index:6}
+nav.tabs button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;color:var(--muted);font-weight:500}
+nav.tabs button svg{width:22px;height:22px}
+nav.tabs button[aria-current="page"]{color:var(--ink);font-weight:700}
+nav.tabs button[aria-current="page"] svg{color:var(--accent)}
+
+.scrim{position:fixed;inset:0;background:rgba(10,18,24,.5);display:flex;align-items:flex-end;z-index:20}
+.sheet{background:var(--card);width:100%;border-radius:20px 20px 0 0;padding:10px 18px 22px;max-height:92vh;overflow:auto;animation:up .2s ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:.6}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.sheet{animation:none}.fill{transition:none}}
+.grip{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 12px}
+.sheet h2{margin:0 0 14px;font:600 18px var(--f-display)}
+.sheet p.help{margin:0 0 12px;color:var(--muted);font-size:14px}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:3px;margin-bottom:14px}
+.seg button{height:38px;border-radius:9px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(20,33,43,.15)}
+.amtfield{display:flex;align-items:center;gap:6px;border-bottom:2px solid var(--ink);padding-bottom:4px}
+.amtfield span{font:500 30px var(--f-num);color:var(--accent)}
+.amtfield input{flex:1;min-width:0;border:0;outline:0;background:none;font:700 34px var(--f-num);color:var(--text);padding:0}
+label.lbl{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:16px 0 8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:8px 12px;border-radius:18px;border:1px solid var(--line);font-size:14px;display:flex;align-items:center;gap:6px}
+.chip[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:#fff}
+.chip.add{border-style:dashed;color:var(--muted)}
+.field{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;font:inherit;background:var(--paper);color:var(--text)}
+.err{color:var(--danger);font-size:13px;min-height:18px;margin-top:8px}
+.actions{display:flex;gap:10px;margin-top:6px}
+.btn{flex:1;height:50px;border-radius:12px;font-weight:600}
+.btn.primary{background:var(--ink);color:#fff}
+.btn.ghost{border:1px solid var(--line)}
+.btn.del{flex:0 0 auto;padding:0 16px;color:var(--danger);border:1px solid var(--line)}
+.btn.del.confirm{background:var(--danger);color:#fff;border-color:var(--danger)}
+.menu button.item{display:block;width:100%;text-align:left;padding:14px 4px;border-bottom:1px solid var(--line);font-size:15px}
+.acct{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.acct .info{flex:1;min-width:0}
+.acct .s{font-size:12px;color:var(--muted)}
+.acct button{color:var(--danger);font-size:14px;padding:6px}
+.status{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;background:var(--paper);font-size:14px;margin-bottom:12px}
+.status .dot{width:10px;height:10px}
+.grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:10px}
+
+.detail-amt{font:700 36px var(--f-num);margin:4px 0 2px}
+.detail-name{font:600 18px var(--f-display)}
+dl.kv{display:grid;grid-template-columns:auto 1fr;gap:10px 16px;margin:16px 0;font-size:14px}
+dl.kv dt{color:var(--muted)}
+dl.kv dd{margin:0;text-align:right;min-width:0;overflow-wrap:anywhere}
+.smsraw{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:13px;line-height:1.5;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere}
+.progress{font-size:12px;color:var(--muted);margin:-8px 0 12px}
+.toast{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:30;max-width:90%}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<button class="fab" id="addBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add</button>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="home" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>Home</button>
+  <button data-tab="history"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 6h14M5 12h14M5 18h9"/></svg>Transactions</button>
+  <button data-tab="people"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.8-4.6 5.5-4.6s4.9 1.6 5.5 4.6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.6c2.3.1 4 1.5 4.5 4.4"/></svg>Friends</button>
+</nav>
+
+<div class="scrim" id="sheetWrap" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="grip"></div>
+    <div id="sheetBody"></div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ---------- Data ---------- */
+const CATS=[
+  {id:'food',name:'Food',color:'#D9822B'},
+  {id:'travel',name:'Travel',color:'#2E7DAF'},
+  {id:'shopping',name:'Shopping',color:'#B5487A'},
+  {id:'bills',name:'Bills',color:'#6A5ACD'},
+  {id:'rent',name:'Rent',color:'#3C6E57'},
+  {id:'health',name:'Health',color:'#C2412D'},
+  {id:'fun',name:'Fun',color:'#C89B00'},
+  {id:'friend',name:'To a friend',color:'#1F6F8B'},
+  {id:'other',name:'Other',color:'#6B7A86'}
+];
+const IN_CATS=[
+  {id:'salary',name:'Salary',color:'#2F8F5B'},
+  {id:'friendin',name:'From a friend',color:'#2A9D8F'},
+  {id:'transfer',name:'Transfer in',color:'#3E7C6A'},
+  {id:'refund',name:'Refund',color:'#4C8C2B'},
+  {id:'income',name:'Other income',color:'#557A46'}
+];
+const ALL_CATS=[...CATS,...IN_CATS];
+const catById=id=>ALL_CATS.find(c=>c.id===id)||CATS[CATS.length-1];
+const PCOLORS=['#1F6F8B','#8B4A9C','#B5612A','#3C6E57','#A83C5A','#4E5FA8','#7A6A1F','#2A7D74'];
+
+const KEY='hisaab.v1';
+let state={expenses:[],budgets:{},people:[],payees:{},sms:{enabled:false,accounts:[],lastSync:0,seen:[],refs:[]}};
+try{
+  const s=JSON.parse(localStorage.getItem(KEY)||'null');
+  if(s&&Array.isArray(s.expenses)){
+    state.expenses=s.expenses;state.budgets=s.budgets||{};state.people=s.people||[];state.payees=s.payees||{};
+    if(s.sms)state.sms=Object.assign(state.sms,s.sms);
+  }
+}catch(e){}
+state.expenses.forEach(e=>{if(!e.type)e.type='out';});
+state.sms.refs=state.sms.refs||[];
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){toast('Could not save. Phone storage may be full.');}}
+
+const fmt=n=>Number(n).toLocaleString('en-IN',{maximumFractionDigits:2});
+const pad=n=>String(n).padStart(2,'0');
+const dstr=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const todayStr=()=>dstr(new Date());
+let view=(()=>{const d=new Date();return {y:d.getFullYear(),m:d.getMonth()};})();
+const mkey=()=>view.y+'-'+pad(view.m+1);
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hasBridge=()=>!!(window.Android&&Android.readInbox);
+const personById=id=>state.people.find(p=>p.id===id);
+const personColor=p=>PCOLORS[(state.people.indexOf(p)%PCOLORS.length+PCOLORS.length)%PCOLORS.length];
+const needsName=e=>e.src==='sms'&&e.unnamed;
+const sortDesc=(a,b)=>b.date.localeCompare(a.date)||(b.ts||b.id)-(a.ts||a.id);
+const dayLabel=d=>d===todayStr()?'Today':new Date(d+'T00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:d.slice(0,4)===todayStr().slice(0,4)?undefined:'numeric'});
+
+/* ---------- Tabs ---------- */
+let tab='home', histQ='', histF='all', openPerson=null;
+$('tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;tab=b.dataset.tab;openPerson=null;render();window.scrollTo(0,0);};
+$('addBtn').onclick=()=>openForm(null,openPerson?{person:openPerson}:null);
+
+function entryRow(e){
+  const k=catById(e.cat),inn=e.type==='in',p=e.person&&personById(e.person);
+  const title=needsName(e)?esc(e.party||'Unnamed payment'):esc(e.note||k.name);
+  const sub=[needsName(e)?'<span class="tag name">ADD NAME</span>':'',e.src==='sms'?'<span class="tag">SMS</span>':'',esc(k.name),p?'· '+esc(p.name):'',e.bank?'· '+esc(e.bank):''].filter(Boolean).join(' ');
+  return '<button class="entry" data-id="'+e.id+'"><span class="badge" style="background:'+k.color+'">'+esc(k.name[0])+'</span><span class="info"><div class="t'+(needsName(e)?' unnamed':'')+'">'+title+'</div><div class="s">'+sub+'</div></span><span class="amt num'+(inn?' in':'')+'">'+(inn?'+':'−')+'₹'+fmt(e.amt)+'</span></button>';
+}
+function dayList(list,showDaySpend){
+  const days={};list.forEach(e=>(days[e.date]=days[e.date]||[]).push(e));
+  let h='<div style="display:flex;flex-direction:column;gap:16px">';
+  for(const [d,items] of Object.entries(days)){
+    const out=items.filter(e=>e.type!=='in').reduce((s,e)=>s+e.amt,0);
+    h+='<div class="day"><div class="dayhead"><b>'+dayLabel(d)+'</b><span class="num">'+(showDaySpend&&out?'₹'+fmt(out)+' spent':'')+'</span></div>'+items.map(entryRow).join('')+'</div>';
+  }
+  return h+'</div>';
+}
+
+function render(){
+  document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===tab?'page':'false'));
+  if(tab==='home')renderHome();else if(tab==='history')renderHistory();else renderPeople();
+}
+
+/* ---------- Home ---------- */
+function renderHome(){
+  const key=mkey();
+  const monthName=new Date(view.y,view.m,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  const list=state.expenses.filter(e=>e.date.startsWith(key)).sort(sortDesc);
+  const outs=list.filter(e=>e.type!=='in'), ins=list.filter(e=>e.type==='in');
+  const total=outs.reduce((s,e)=>s+e.amt,0), recv=ins.reduce((s,e)=>s+e.amt,0);
+  const b=state.budgets[key];
+  const pending=state.expenses.filter(needsName).length;
+  let h='<header><div class="monthbar">'+
+    '<button class="iconbtn" id="prev" aria-label="Previous month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button>'+
+    '<h1>'+monthName+'</h1><div style="display:flex">'+
+    '<button class="iconbtn" id="next" aria-label="Next month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button>'+
+    '<button class="iconbtn" id="menuBtn" aria-label="More options"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button></div></div>'+
+    '<div class="total-label">Spent this month</div><div class="total num"><span class="rs">₹</span>'+fmt(total)+'</div>'+
+    (recv?'<div class="received">Received <b>₹'+fmt(recv)+'</b></div>':'');
+  if(b){const left=b-total,pct=Math.min(100,total/b*100);
+    h+='<div class="budget"><div class="budget-row"><span>'+(left>=0?'₹'+fmt(left)+' left':'₹'+fmt(-left)+' over budget')+'</span><span>of ₹'+fmt(b)+'</span></div><div class="track"><div class="fill'+(left<0?' over':'')+'" style="width:'+pct+'%"></div></div></div>';}
+  h+='<div class="headlinks"><button id="setBudget">'+(b?'Change budget':'Set a monthly budget')+'</button><button id="bankLink">'+(state.sms.enabled&&state.sms.accounts.length?'Bank sync on':'Bank SMS sync')+'</button></div></header><main>';
+  if(pending)h+='<button class="review" id="reviewBtn"><span class="n">'+pending+'</span><span class="info"><b>Name your bank payments</b><span>Add what each one was for. Hisaab remembers it next time.</span></span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button>';
+  if(!list.length){
+    h+='<div class="empty"><strong>Nothing here yet</strong>Tap <b>Add</b> to log a payment, or turn on <b>Bank SMS sync</b> to fill this in from your bank messages.</div>';
+  }else{
+    if(outs.length){
+      const byCat={};outs.forEach(e=>byCat[e.cat]=(byCat[e.cat]||0)+e.amt);
+      const cats=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+      h+='<section><h3 class="section-title">Where it went</h3><div class="split"><div class="stack">'+
+        cats.map(([c,v])=>'<span style="width:'+(v/total*100)+'%;background:'+catById(c).color+'"></span>').join('')+
+        '</div><ul class="cats">'+cats.map(([c,v])=>{const k=catById(c);return '<li><span class="dot" style="background:'+k.color+'"></span><span class="name">'+k.name+'</span><span class="num">₹'+fmt(v)+'</span></li>';}).join('')+'</ul></div></section>';
+    }
+    h+='<section><h3 class="section-title">This month</h3>'+dayList(list,true)+'</section>';
+  }
+  $('app').innerHTML=h+'</main>';
+  $('prev').onclick=()=>{view.m--;if(view.m<0){view.m=11;view.y--;}render();};
+  $('next').onclick=()=>{view.m++;if(view.m>11){view.m=0;view.y++;}render();};
+  $('menuBtn').onclick=openMenu;
+  $('setBudget').onclick=openBudget;
+  $('bankLink').onclick=openBank;
+  if($('reviewBtn'))$('reviewBtn').onclick=openReview;
+}
+
+/* ---------- Transactions (history) ---------- */
+function renderHistory(){
+  const q=histQ.trim().toLowerCase();
+  let list=state.expenses.slice().sort(sortDesc);
+  if(histF==='out')list=list.filter(e=>e.type!=='in');
+  if(histF==='in')list=list.filter(e=>e.type==='in');
+  if(histF==='name')list=list.filter(needsName);
+  if(q)list=list.filter(e=>{const p=e.person&&personById(e.person);return [e.note,e.party,catById(e.cat).name,p&&p.name,e.bank,e.ref,String(e.amt)].some(x=>x&&String(x).toLowerCase().includes(q));});
+  const out=list.filter(e=>e.type!=='in').reduce((s,e)=>s+e.amt,0),inn=list.filter(e=>e.type==='in').reduce((s,e)=>s+e.amt,0);
+  const F=[['all','All'],['out','Spent'],['in','Received'],['name','Needs a name']];
+  let h='<div class="pagehead"><h1>Transactions</h1><p>Every payment and receipt, newest first</p></div><main>'+
+    '<div class="search"><input class="field" id="hq" type="search" placeholder="Search name, friend, amount or ref no." value="'+esc(histQ)+'" autocomplete="off">'+
+    '<div class="filters" id="hf">'+F.map(([k,l])=>'<button class="chip" data-f="'+k+'" aria-pressed="'+(histF===k)+'">'+l+'</button>').join('')+'</div>'+
+    '<div class="sumrow"><span>'+list.length+' entries</span><span>Spent <b class="out-c">₹'+fmt(out)+'</b></span><span>Received <b class="in-c">₹'+fmt(inn)+'</b></span></div></div>';
+  h+=list.length?dayList(list,false):'<div class="empty"><strong>No matching transactions</strong>Try a different search or filter.</div>';
+  $('app').innerHTML=h+'</main>';
+  const inp=$('hq');
+  inp.oninput=()=>{histQ=inp.value;const pos=inp.selectionStart;renderHistory();const n=$('hq');n.focus();try{n.setSelectionRange(pos,pos);}catch(e){}};
+  $('hf').onclick=e=>{const b=e.target.closest('.chip');if(!b)return;histF=b.dataset.f;renderHistory();};
+}
+
+/* ---------- Friends ---------- */
+function personTotals(pid){
+  const list=state.expenses.filter(e=>e.person===pid);
+  const sent=list.filter(e=>e.type!=='in').reduce((s,e)=>s+e.amt,0);
+  const got=list.filter(e=>e.type==='in').reduce((s,e)=>s+e.amt,0);
+  return {list,sent,got,net:sent-got};
+}
+function balText(net){
+  if(Math.abs(net)<0.005)return ['Settled','var(--muted)'];
+  return net>0?['They owe you ₹'+fmt(net),'var(--ok)']:['You owe ₹'+fmt(-net),'var(--danger)'];
+}
+function renderPeople(){
+  if(openPerson&&personById(openPerson))return renderPerson(openPerson);
+  let h='<div class="pagehead"><h1>Friends</h1><p>Money you sent and received, person by person</p></div><main>';
+  if(!state.people.length){
+    h+='<div class="empty"><strong>No friends added yet</strong>Add a friend, then pick them when you log money you sent or received. You can also pick a friend on any bank SMS entry.</div>';
+  }else{
+    let sentAll=0,gotAll=0;
+    const rows=state.people.map(p=>{const t=personTotals(p.id);sentAll+=t.sent;gotAll+=t.got;return {p,t};}).sort((a,b)=>Math.abs(b.t.net)-Math.abs(a.t.net));
+    h+='<div class="netcard"><div><span>You sent</span><b class="out-c">₹'+fmt(sentAll)+'</b></div><div><span>You got</span><b class="in-c">₹'+fmt(gotAll)+'</b></div><div><span>Balance</span><b style="color:'+(sentAll-gotAll>=0?'var(--ok)':'var(--danger)')+'">'+(sentAll-gotAll<0?'−':'')+'₹'+fmt(Math.abs(sentAll-gotAll))+'</b></div></div>';
+    h+='<div style="display:flex;flex-direction:column;gap:10px">'+rows.map(({p,t})=>{const [txt,col]=balText(t.net);
+      return '<button class="person" data-p="'+p.id+'"><span class="avatar" style="background:'+personColor(p)+'">'+esc(p.name[0].toUpperCase())+'</span><span class="info"><div class="nm">'+esc(p.name)+'</div><div class="s">Sent ₹'+fmt(t.sent)+' · Got ₹'+fmt(t.got)+'</div></span><span class="bal"><b style="color:'+col+'">'+(Math.abs(t.net)<0.005?'₹0':'₹'+fmt(Math.abs(t.net)))+'</b><span>'+(Math.abs(t.net)<0.005?'settled':t.net>0?'owes you':'you owe')+'</span></span></button>';}).join('')+'</div>';
+  }
+  h+='<button class="btn ghost" id="addPerson" style="flex:none">Add a friend</button>';
+  $('app').innerHTML=h+'</main>';
+  $('addPerson').onclick=()=>openPersonForm(null);
+  $('app').querySelectorAll('.person').forEach(b=>b.onclick=()=>{openPerson=b.dataset.p;render();window.scrollTo(0,0);});
+}
+function renderPerson(pid){
+  const p=personById(pid),t=personTotals(pid),[txt,col]=balText(t.net);
+  let h='<div class="pagehead"><div style="display:flex;align-items:center;gap:8px;margin:-6px 0 6px -10px"><button class="iconbtn" id="back" aria-label="Back to friends"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button><span style="color:#93A3AE;font-size:13px">Friends</span></div>'+
+    '<h1>'+esc(p.name)+'</h1><p style="color:'+(t.net>0?'var(--ok-soft)':t.net<0?'#F1A493':'#93A3AE')+';font-size:15px;font-weight:600">'+txt+'</p></div><main>'+
+    '<div class="netcard"><div><span>You sent</span><b class="out-c">₹'+fmt(t.sent)+'</b></div><div><span>You got</span><b class="in-c">₹'+fmt(t.got)+'</b></div><div><span>Entries</span><b>'+t.list.length+'</b></div></div>';
+  h+=t.list.length?dayList(t.list.sort(sortDesc),false):'<div class="empty"><strong>No transactions with '+esc(p.name)+' yet</strong>Tap <b>Add</b> to log money you sent or received.</div>';
+  h+='<button class="btn ghost" id="editPerson" style="flex:none">Rename or remove '+esc(p.name)+'</button>';
+  $('app').innerHTML=h+'</main>';
+  $('back').onclick=()=>{openPerson=null;render();};
+  $('editPerson').onclick=()=>openPersonForm(p);
+}
+function openPersonForm(p,onDone){
+  openSheet('<h2 id="sheetTitle">'+(p?'Edit friend':'Add a friend')+'</h2>'+
+    '<label class="lbl" for="pName">Name</label><input class="field" id="pName" maxlength="30" placeholder="e.g. Rohan" value="'+(p?esc(p.name):'')+'">'+
+    '<div class="err" id="pErr"></div><div class="actions">'+(p?'<button class="btn del" id="pDel">Remove</button>':'')+'<button class="btn ghost" id="pCancel">Cancel</button><button class="btn primary" id="pSave">Save</button></div>'+
+    (p?'<p class="help" style="margin-top:12px">Removing a friend keeps their transactions; they just won\'t be linked to anyone.</p>':''));
+  setTimeout(()=>$('pName').focus(),150);
+  $('pCancel').onclick=closeSheet;
+  $('pSave').onclick=()=>{
+    const n=$('pName').value.trim();
+    if(!n){$('pErr').textContent='Enter a name.';return;}
+    if(state.people.some(x=>x.name.toLowerCase()===n.toLowerCase()&&(!p||x.id!==p.id))){$('pErr').textContent='You already have a friend with that name.';return;}
+    let id;if(p){p.name=n;id=p.id;}else{id='p'+Date.now();state.people.push({id,name:n});}
+    save();closeSheet();if(onDone)onDone(id);else render();toast(p?'Friend updated':n+' added');
+  };
+  if(p){const d=$('pDel');d.onclick=()=>{
+    if(!d.classList.contains('confirm')){d.classList.add('confirm');d.textContent='Tap to confirm';return;}
+    state.people=state.people.filter(x=>x.id!==p.id);
+    state.expenses.forEach(e=>{if(e.person===p.id)delete e.person;});
+    Object.values(state.payees).forEach(v=>{if(v.person===p.id)delete v.person;});
+    save();closeSheet();openPerson=null;render();toast('Friend removed');
+  };}
+}
+
+/* ---------- Sheets ---------- */
+let sheetName='';
+function openSheet(html,name){sheetName=name||'';$('sheetBody').innerHTML=html;$('sheetWrap').hidden=false;$('sheetWrap').querySelector('.sheet').scrollTop=0;}
+function closeSheet(){$('sheetWrap').hidden=true;$('sheetBody').innerHTML='';sheetName='';}
+$('sheetWrap').addEventListener('click',e=>{if(e.target.id==='sheetWrap')closeSheet();});
+window.onAndroidBack=()=>{
+  if(!$('sheetWrap').hidden){closeSheet();return true;}
+  if(openPerson){openPerson=null;render();return true;}
+  if(tab!=='home'){tab='home';render();return true;}
+  return false;
+};
+document.getElementById('app').addEventListener('click',ev=>{const b=ev.target.closest('.entry');if(b)openDetail(state.expenses.find(e=>e.id==b.dataset.id));});
+
+/* Transaction detail */
+function openDetail(e){
+  if(!e)return;
+  const k=catById(e.cat),inn=e.type==='in',p=e.person&&personById(e.person);
+  const when=e.ts?new Date(e.ts).toLocaleString('en-IN',{day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'}):dayLabel(e.date);
+  const rows=[['Type',inn?'Received':'Spent'],['Category',k.name],['Friend',p?p.name:''],['When',when],['Account',e.bank||''],['Paid to / from',e.src==='sms'?e.party||'':''],['Reference no.',e.ref||''],['Added by',e.src==='sms'?'Bank SMS':'You']].filter(r=>r[1]);
+  openSheet('<h2 id="sheetTitle" style="margin-bottom:4px">Transaction</h2>'+
+    '<div class="detail-amt '+(inn?'in-c':'out-c')+'">'+(inn?'+':'−')+'₹'+fmt(e.amt)+'</div>'+
+    '<div class="detail-name">'+(needsName(e)?'<span style="color:var(--muted);font-style:italic">No name yet</span>':esc(e.note||k.name))+'</div>'+
+    '<dl class="kv">'+rows.map(r=>'<dt>'+r[0]+'</dt><dd>'+esc(r[1])+'</dd>').join('')+'</dl>'+
+    (e.raw?'<label class="lbl">Bank message</label><div class="smsraw">'+esc(e.raw)+'</div>':'')+
+    '<div class="actions" style="margin-top:16px"><button class="btn ghost" id="dClose">Close</button><button class="btn primary" id="dEdit">'+(needsName(e)?'Add name':'Edit')+'</button></div>');
+  $('dClose').onclick=closeSheet;
+  $('dEdit').onclick=()=>openForm(e);
+}
+
+/* Shared chip pickers */
+function catChips(type,cat){return (type==='in'?IN_CATS:CATS).map(c=>'<button class="chip" data-c="'+c.id+'" aria-pressed="'+(c.id===cat)+'"><span class="dot" style="background:'+c.color+'"></span>'+c.name+'</button>').join('');}
+function personChips(pid){return '<button class="chip" data-p="" aria-pressed="'+(!pid)+'">No one</button>'+state.people.map(p=>'<button class="chip" data-p="'+p.id+'" aria-pressed="'+(p.id===pid)+'">'+esc(p.name)+'</button>').join('')+'<button class="chip add" data-new="1">+ New friend</button>';}
+function wirePicker(el,attr,onPick){el.onclick=e=>{const b=e.target.closest('.chip');if(!b||b.dataset.new)return;onPick(b.dataset[attr]);[...el.children].forEach(x=>{if(!x.dataset.new)x.setAttribute('aria-pressed',x===b);});};}
+
+/* Add / edit form */
+function openForm(exp,preset){
+  const draft=exp?Object.assign({},exp):Object.assign({type:'out',cat:'food',note:'',person:'',date:(mkey()===todayStr().slice(0,7)?todayStr():mkey()+'-01')},preset||{});
+  if(preset&&preset.person&&!exp)draft.cat='friend';
+  function draw(){
+    openSheet('<h2 id="sheetTitle">'+(exp?(needsName(exp)?'Name this payment':'Edit entry'):'New entry')+'</h2>'+
+      (exp&&exp.src==='sms'?'<p class="help">'+esc(exp.party?(exp.type==='in'?'From ':'To ')+exp.party+' · ':'')+esc(exp.bank||'')+'</p>':'')+
+      '<div class="seg" id="fType"><button data-t="out" aria-pressed="'+(draft.type!=='in')+'">Spent / Sent</button><button data-t="in" aria-pressed="'+(draft.type==='in')+'">Received</button></div>'+
+      '<div class="amtfield"><span>₹</span><input id="fAmt" type="text" inputmode="decimal" placeholder="0" autocomplete="off" value="'+(draft.amt||'')+'"></div>'+
+      '<label class="lbl" for="fNote">What was it for?</label><input class="field" id="fNote" maxlength="60" placeholder="e.g. Dinner at Barbeque Nation" value="'+esc(draft.note||'')+'">'+
+      '<label class="lbl">Category</label><div class="chips" id="fCats">'+catChips(draft.type,draft.cat)+'</div>'+
+      '<label class="lbl">Friend</label><div class="chips" id="fPeople">'+personChips(draft.person)+'</div>'+
+      '<label class="lbl" for="fDate">Date</label><input class="field" id="fDate" type="date" value="'+draft.date+'">'+
+      (exp&&exp.src==='sms'&&exp.party?'<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-size:14px"><input type="checkbox" id="fLearn" checked style="width:18px;height:18px"> Use this name for future payments '+(exp.type==='in'?'from ':'to ')+esc(exp.party)+'</label>':'')+
+      '<div class="err" id="fErr"></div>'+
+      '<div class="actions">'+(exp?'<button class="btn del" id="fDel">Delete</button>':'')+'<button class="btn ghost" id="fCancel">Cancel</button><button class="btn primary" id="fSave">Save</button></div>');
+    const keep=()=>{draft.amt=$('fAmt').value;draft.note=$('fNote').value;draft.date=$('fDate').value;};
+    $('fType').onclick=e=>{const b=e.target.closest('button');if(!b)return;keep();draft.type=b.dataset.t;const set=draft.type==='in'?IN_CATS:CATS;if(!set.some(c=>c.id===draft.cat))draft.cat=draft.person?(draft.type==='in'?'friendin':'friend'):set[0].id;draw();};
+    wirePicker($('fCats'),'c',v=>draft.cat=v);
+    wirePicker($('fPeople'),'p',v=>{draft.person=v;if(v&&['other','transfer','food'].includes(draft.cat)){draft.cat=draft.type==='in'?'friendin':'friend';$('fCats').innerHTML=catChips(draft.type,draft.cat);}});
+    $('fPeople').querySelector('[data-new]').onclick=()=>{keep();openPersonForm(null,id=>{draft.person=id;if(draft.cat==='other'||draft.cat==='food')draft.cat=draft.type==='in'?'friendin':'friend';draw();});};
+    $('fCancel').onclick=closeSheet;
+    $('fSave').onclick=()=>{
+      const amt=parseFloat($('fAmt').value.replace(/,/g,''));
+      const date=$('fDate').value, note=$('fNote').value.trim();
+      if(!(amt>0)){$('fErr').textContent='Enter an amount greater than 0.';return;}
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){$('fErr').textContent='Pick a date.';return;}
+      const rec=Object.assign({},exp||{},{id:exp?exp.id:Date.now(),type:draft.type,amt:Math.round(amt*100)/100,cat:draft.cat,note,date});
+      if(draft.person)rec.person=draft.person;else delete rec.person;
+      if(rec.src==='sms'&&(note||draft.person))delete rec.unnamed;
+      if(exp&&$('fLearn')&&$('fLearn').checked&&exp.party){
+        state.payees[exp.party.toLowerCase()]={note,cat:draft.cat,person:draft.person||''};
+        applyPayee(exp.party);
+      }
+      if(exp)state.expenses[state.expenses.findIndex(e=>e.id===exp.id)]=rec;else state.expenses.push(rec);
+      save();closeSheet();
+      if(tab==='home'){const [y,m]=date.split('-');view={y:+y,m:+m-1};}
+      render();toast(exp?'Saved':'Entry added');
+    };
+    if(exp){const del=$('fDel');del.onclick=()=>{
+      if(!del.classList.contains('confirm')){del.classList.add('confirm');del.textContent='Tap to confirm';return;}
+      state.expenses=state.expenses.filter(e=>e.id!==exp.id);save();closeSheet();render();toast('Entry deleted');
+    };}
+  }
+  draw();
+  if(!exp)setTimeout(()=>$('fAmt')&&$('fAmt').focus(),150);
+}
+/* After learning a payee, fill in the other unnamed entries for that party */
+function applyPayee(party){
+  const pv=state.payees[party.toLowerCase()];if(!pv)return 0;let n=0;
+  state.expenses.forEach(e=>{if(needsName(e)&&e.party&&e.party.toLowerCase()===party.toLowerCase()){
+    if(pv.note)e.note=pv.note;
+    const set=e.type==='in'?IN_CATS:CATS;
+    if(pv.cat&&set.some(c=>c.id===pv.cat))e.cat=pv.cat;else if(pv.person)e.cat=e.type==='in'?'friendin':'friend';
+    if(pv.person&&personById(pv.person))e.person=pv.person;
+    delete e.unnamed;n++;
+  }});
+  return n;
+}
+
+/* Name-them-one-by-one review */
+function openReview(){
+  const queue=state.expenses.filter(needsName).sort(sortDesc);
+  if(!queue.length){closeSheet();render();toast('All payments are named');return;}
+  const e=queue[0];const draft={note:'',cat:e.cat,person:''};
+  openSheet('<h2 id="sheetTitle">Name your bank payments</h2><div class="progress">'+queue.length+' left</div>'+
+    '<div class="detail-amt '+(e.type==='in'?'in-c':'out-c')+'">'+(e.type==='in'?'+':'−')+'₹'+fmt(e.amt)+'</div>'+
+    '<div style="color:var(--muted);font-size:14px">'+(e.party?(e.type==='in'?'From ':'To ')+'<b style="color:var(--text)">'+esc(e.party)+'</b> · ':'')+dayLabel(e.date)+(e.bank?' · '+esc(e.bank):'')+'</div>'+
+    '<label class="lbl" for="rNote">What was it for?</label><input class="field" id="rNote" maxlength="60" placeholder="e.g. Groceries, Petrol, Movie with Rohan">'+
+    '<label class="lbl">Category</label><div class="chips" id="rCats">'+catChips(e.type,draft.cat)+'</div>'+
+    '<label class="lbl">Friend</label><div class="chips" id="rPeople">'+personChips('')+'</div>'+
+    (e.party?'<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-size:14px"><input type="checkbox" id="rLearn" checked style="width:18px;height:18px"> Remember for future payments '+(e.type==='in'?'from ':'to ')+esc(e.party)+'</label>':'')+
+    (e.raw?'<label class="lbl">Bank message</label><div class="smsraw">'+esc(e.raw)+'</div>':'')+
+    '<div class="err" id="rErr"></div><div class="actions"><button class="btn ghost" id="rSkip">Later</button><button class="btn primary" id="rSave">Save &amp; next</button></div>','review');
+  wirePicker($('rCats'),'c',v=>draft.cat=v);
+  wirePicker($('rPeople'),'p',v=>{draft.person=v;if(v&&['other','transfer'].includes(draft.cat)){draft.cat=e.type==='in'?'friendin':'friend';$('rCats').innerHTML=catChips(e.type,draft.cat);}});
+  $('rPeople').querySelector('[data-new]').onclick=()=>{const note=$('rNote').value;openPersonForm(null,id=>{openReview();$('rNote').value=note;const b=$('rPeople').querySelector('[data-p="'+id+'"]');if(b)b.click();});};
+  $('rSkip').onclick=()=>{closeSheet();render();};
+  $('rSave').onclick=()=>{
+    const note=$('rNote').value.trim();
+    if(!note&&!draft.person){$('rErr').textContent='Type what it was for, or pick a friend.';return;}
+    e.note=note||(draft.person?personById(draft.person).name:'');e.cat=draft.cat;
+    if(draft.person)e.person=draft.person;
+    delete e.unnamed;
+    let more=0;
+    if(e.party&&$('rLearn')&&$('rLearn').checked){state.payees[e.party.toLowerCase()]={note:e.note,cat:draft.cat,person:draft.person||''};more=applyPayee(e.party);}
+    save();render();if(more)toast(more+' more '+(more===1?'payment':'payments')+' to '+e.party+' named too');
+    openReview();
+  };
+}
+
+function openBudget(){
+  const key=mkey(),cur=state.budgets[key]||'';
+  const mn=new Date(view.y,view.m,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  openSheet('<h2 id="sheetTitle">Budget for '+mn+'</h2>'+
+    '<div class="amtfield"><span>₹</span><input id="bAmt" type="text" inputmode="decimal" placeholder="0" value="'+cur+'"></div>'+
+    '<p class="help" style="margin-top:10px">Only money spent counts toward the budget. Money received does not.</p>'+
+    '<div class="err" id="bErr"></div><div class="actions">'+(cur?'<button class="btn del" id="bClear">Remove</button>':'')+'<button class="btn ghost" id="bCancel">Cancel</button><button class="btn primary" id="bSave">Save</button></div>');
+  setTimeout(()=>$('bAmt').focus(),150);
+  $('bCancel').onclick=closeSheet;
+  if(cur)$('bClear').onclick=()=>{delete state.budgets[key];save();closeSheet();render();};
+  $('bSave').onclick=()=>{const v=parseFloat($('bAmt').value.replace(/,/g,''));if(!(v>0)){$('bErr').textContent='Enter a budget greater than 0.';return;}state.budgets[key]=v;save();closeSheet();render();toast('Budget saved');};
+}
+
+/* ---------- Bank SMS reading ---------- */
+const SKIP=/\botp\b|one[- ]time password|verification code|\brequest(ed)?\b|will be debited|is due|due on|due date|min(imum)? amount|bill (is )?generated|failed|declined|unsuccessful|reversed|offer|cashback up to|loan|pre-?approved|e-?mandate|autopay (set|registered)/i;
+const OUT_RE=/\b(debited|spent|withdrawn|paid|sent|purchase|transferred|deducted|debit|done|used)\b/i;
+const IN_RE=/\b(credited|received|deposited|refund(ed)?|credit)\b/i;
+const AMT_RE=/(?:rs\.?|inr|₹)\s*([\d,]+(?:\.\d{1,2})?)/i;
+const TAIL_RE=/(?:[x*]{1,}|ending(?: with)?\s*|a\/c(?: no\.?)?\s*[x*]*|acct?\s*[x*]*|card\s*[x*]*)\s?(\d{3,4})\b/gi;
+const REF_RE=/(?:\bref(?:erence)?\.?\s*(?:no|number|id)?\.?|\bupi(?:\s*ref)?(?:\s*(?:no|id))?\.?|\btxn\s*(?:id|no)?\.?|\btransaction\s*(?:id|no)\.?|\butr(?:\s*no)?\.?|\brrn)[\s:#-]*((?=[A-Z0-9]*\d)[A-Z0-9]{6,22})\b/i;
+
+function matchAccount(body){
+  const tails=[...body.matchAll(TAIL_RE)].map(m=>m[1]);
+  for(const a of state.sms.accounts){ if(tails.some(t=>a.last4.endsWith(t)))return a; }
+  return null;
+}
+function findRef(body){
+  const m=body.match(REF_RE);if(m)return m[1].toUpperCase();
+  const d=body.match(/\b(\d{12})\b/);return d?d[1]:'';
+}
+function findParty(body,type){
+  const vpa=body.match(/\bvpa\s+([\w.\-]+@[\w.]+)/i);
+  if(vpa)return vpa[1];
+  const re=type==='out'
+    ? /(?:\bto\b|\bat\b|towards|trf to|info:?)\s+(?:vpa\s+)?([A-Za-z0-9@._&' -]{3,40}?)(?=\s+(?:on|ref\w*|upi|via|avl|bal|dated|thru|for)\b|[.,;(]|$)/i
+    : /(?:\bfrom\b|\bby\b)\s+(?:vpa\s+)?([A-Za-z0-9@._&' -]{3,40}?)(?=\s+(?:on|ref\w*|upi|via|avl|bal|dated|thru|to)\b|[.,;(]|$)/i;
+  const m=body.match(re);
+  if(!m)return '';
+  let p=m[1].trim();
+  if(/^(your|a\/c|ac|acct|account|you|rs|inr|₹)\b/i.test(p)||/^(rs|inr|₹)/i.test(p)||/^[x*\d]+$/i.test(p))return '';
+  return p.length>30?p.slice(0,30)+'…':p;
+}
+function parseSms(m){
+  const raw=String(m.body||''), body=raw.replace(/\s+/g,' ');
+  if(SKIP.test(body))return null;
+  const acct=matchAccount(body); if(!acct)return null;
+  const am=body.match(AMT_RE)||body.match(/\b(?:debited|credited|paid|sent|spent)\s+(?:by|with|for|of)?\s*([\d,]+(?:\.\d{1,2})?)\b/i); if(!am)return null;
+  const amt=parseFloat(am[1].replace(/,/g,'')); if(!(amt>0))return null;
+  const o=body.search(OUT_RE), i=body.search(IN_RE);
+  let type; if(o<0&&i<0)return null; else if(o<0)type='in'; else if(i<0)type='out'; else type=o<i?'out':'in';
+  const party=findParty(body,type);
+  const refund=/refund/i.test(body);
+  const ts=Number(m.date);
+  const rec={id:ts*10+Math.floor(Math.random()*10),ts,type,amt:Math.round(amt*100)/100,
+    cat:type==='out'?'other':(refund?'refund':(/salary/i.test(body)?'salary':'transfer')),
+    note:'',party,date:dstr(new Date(ts)),src:'sms',bank:acct.name+' ••'+acct.last4,acct:acct.last4,ref:findRef(body),raw:raw.slice(0,600),unnamed:true};
+  const pv=party&&state.payees[party.toLowerCase()];
+  if(pv){
+    rec.note=pv.note||'';
+    const set=type==='in'?IN_CATS:CATS;
+    if(pv.cat&&set.some(c=>c.id===pv.cat))rec.cat=pv.cat;else if(pv.person)rec.cat=type==='in'?'friendin':'friend';
+    if(pv.person&&personById(pv.person))rec.person=pv.person;
+    if(rec.note||rec.person)delete rec.unnamed;
+  }
+  return rec;
+}
+/* Same transaction reported twice (bank + UPI app, or two SMS from the bank) */
+function isDuplicate(t){
+  if(t.ref){
+    if(state.sms.refs.includes(t.type+':'+t.ref))return true;
+    if(state.expenses.some(e=>e.ref===t.ref&&e.type===t.type))return true;
+    return false;
+  }
+  return state.expenses.some(e=>e.src==='sms'&&e.type===t.type&&e.amt===t.amt&&e.acct===t.acct&&Math.abs((e.ts||0)-t.ts)<10*60*1000);
+}
+function smsSync(manual){
+  if(!hasBridge()){if(manual)toast('Bank sync works in the Android app');return;}
+  if(!state.sms.enabled||!state.sms.accounts.length)return;
+  if(!Android.hasSmsPermission()){if(manual)toast('Allow SMS access first');return;}
+  const since=state.sms.lastSync||(Date.now()-(state.sms.backfillDays||30)*864e5);
+  let msgs=[];try{msgs=JSON.parse(Android.readInbox(since));}catch(e){return;}
+  const seen=new Set(state.sms.seen);let added=0,dups=0,maxDate=since;
+  for(const m of msgs){
+    maxDate=Math.max(maxDate,Number(m.date));
+    const k=String(m.id); if(seen.has(k))continue; seen.add(k);
+    const t=parseSms(m); if(!t)continue;
+    if(isDuplicate(t)){dups++;continue;}
+    state.expenses.push(t);added++;
+    if(t.ref)state.sms.refs.push(t.type+':'+t.ref);
+  }
+  state.sms.seen=[...seen].slice(-1500);state.sms.refs=state.sms.refs.slice(-3000);state.sms.lastSync=maxDate;save();render();
+  if(sheetName==='bank')openBank();
+  if(added)toast(added+(added===1?' transaction':' transactions')+' added from bank SMS'+(dups?' ('+dups+' duplicate skipped)':''));
+  else if(manual)toast(dups?'No new transactions ('+dups+' duplicate skipped)':'No new bank transactions');
+}
+/* Clean up duplicates that came in before duplicate checking existed */
+function dedupeExisting(){
+  const keep=[],refs=new Set();let removed=0;
+  for(const e of state.expenses.slice().sort((a,b)=>(a.ts||a.id)-(b.ts||b.id))){
+    if(e.src==='sms'&&e.ref){const k=e.type+':'+e.ref;if(refs.has(k)){removed++;continue;}refs.add(k);}
+    keep.push(e);
+  }
+  if(removed){state.expenses=keep;save();}
+}
+window.onAndroidResume=()=>smsSync(false);
+window.onSmsPermission=granted=>{
+  if(granted){state.sms.enabled=true;save();smsSync(true);}
+  else toast('SMS access was not allowed');
+  if(sheetName==='bank')openBank();
+};
+
+function openBank(){
+  const s=state.sms, bridge=hasBridge(), perm=bridge&&Android.hasSmsPermission();
+  let status;
+  if(!bridge)status=['#6B7A86','Bank sync works only inside the Hisaab Android app.'];
+  else if(!s.accounts.length)status=['#E8A317','Add your bank account below to start.'];
+  else if(!perm)status=['#C2412D','Hisaab needs permission to read SMS.'];
+  else status=['#2F8F5B','On. New bank SMS are added each time you open Hisaab.'];
+  openSheet('<h2 id="sheetTitle">Bank SMS sync</h2>'+
+    '<p class="help">Hisaab reads your bank\'s debit and credit SMS on this phone and adds them for you. If the same payment arrives in two messages, the reference number is used to keep only one. Messages never leave your phone, and only the last 4 digits of your account are needed.</p>'+
+    '<div class="status"><span class="dot" style="background:'+status[0]+'"></span>'+status[1]+'</div>'+
+    (s.accounts.length?'<label class="lbl">Your accounts</label>'+s.accounts.map((a,i)=>'<div class="acct"><span class="badge" style="background:var(--ink)">'+esc((a.name[0]||'B').toUpperCase())+'</span><div class="info"><div>'+esc(a.name)+'</div><div class="s num">A/c ending '+a.last4+'</div></div><button data-i="'+i+'">Remove</button></div>').join(''):'')+
+    '<label class="lbl">Add an account</label>'+
+    '<div class="grid2"><input class="field" id="aName" maxlength="24" placeholder="Bank, e.g. SBI"><input class="field num" id="aLast" inputmode="numeric" maxlength="4" placeholder="Last 4 digits"></div>'+
+    (!s.lastSync?'<label class="lbl" for="aDays">On first sync, import messages from</label><select class="field" id="aDays"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select>':'')+
+    '<div class="err" id="aErr"></div>'+
+    '<div class="actions"><button class="btn ghost" id="aAdd">Add account</button>'+
+      (bridge&&s.accounts.length?(perm?'<button class="btn primary" id="aSync">Sync now</button>':'<button class="btn primary" id="aPerm">Allow SMS access</button>'):'')+'</div>'+
+    (bridge&&s.accounts.length&&!perm?'<p class="help" style="margin-top:14px">If Android says the setting is restricted: open <b>App info</b> for Hisaab, tap ⋮ at the top right, choose <b>Allow restricted settings</b>, then come back and tap Allow SMS access again. <button id="aSettings" style="color:var(--accent);font-weight:600;padding:0">Open App info</button></p>':'')+
+    '<div class="actions" style="margin-top:10px"><button class="btn ghost" id="aClose">Close</button></div>','bank');
+  $('aClose').onclick=closeSheet;
+  $('sheetBody').querySelectorAll('.acct button').forEach(b=>b.onclick=()=>{s.accounts.splice(+b.dataset.i,1);save();render();openBank();});
+  $('aAdd').onclick=()=>{
+    const name=$('aName').value.trim(), last=$('aLast').value.trim();
+    if(!name){$('aErr').textContent='Enter the bank name.';return;}
+    if(!/^\d{4}$/.test(last)){$('aErr').textContent='Enter exactly the last 4 digits of the account.';return;}
+    if(s.accounts.some(a=>a.last4===last)){$('aErr').textContent='That account is already added.';return;}
+    if($('aDays'))s.backfillDays=+$('aDays').value;
+    s.accounts.push({name,last4:last});save();render();
+    if(bridge&&Android.hasSmsPermission()){s.enabled=true;save();smsSync(true);}
+    openBank();
+  };
+  if($('aDays'))$('aDays').onchange=()=>{s.backfillDays=+$('aDays').value;save();};
+  if($('aSync'))$('aSync').onclick=()=>{s.enabled=true;save();smsSync(true);};
+  if($('aPerm'))$('aPerm').onclick=()=>Android.requestSmsPermission();
+  if($('aSettings'))$('aSettings').onclick=()=>Android.openAppSettings();
+}
+
+function toCSV(rows){return 'Date,Type,Name,Category,Friend,Amount,Account,Reference,Source\n'+rows.map(e=>{const p=e.person&&personById(e.person);
+  return [e.date,e.type==='in'?'Received':'Spent','"'+String(e.note||e.party||'').replace(/"/g,'""')+'"',catById(e.cat).name,'"'+(p?p.name.replace(/"/g,'""'):'')+'"',e.amt,'"'+(e.bank||'')+'"',e.ref||'',e.src==='sms'?'Bank SMS':'Manual'].join(',');}).join('\n');}
+function share(text){if(window.Android&&Android.shareText)Android.shareText(text);else if(navigator.clipboard)navigator.clipboard.writeText(text).then(()=>toast('Copied to clipboard'),()=>toast('Sharing is not available here'));}
+
+function openMenu(){
+  openSheet('<h2 id="sheetTitle">Options</h2><div class="menu">'+
+    '<button class="item" id="mBank">Bank SMS sync</button>'+
+    '<button class="item" id="mMonth">Share this month as a spreadsheet (CSV)</button>'+
+    '<button class="item" id="mAll">Share everything as a spreadsheet (CSV)</button>'+
+    '<button class="item" id="mToday">Go to current month</button></div>'+
+    '<div class="actions" style="margin-top:14px"><button class="btn ghost" id="mClose">Close</button></div>');
+  $('mClose').onclick=closeSheet;
+  $('mBank').onclick=openBank;
+  $('mMonth').onclick=()=>{const k=mkey();closeSheet();share(toCSV(state.expenses.filter(e=>e.date.startsWith(k)).sort((a,b)=>a.date.localeCompare(b.date))));};
+  $('mAll').onclick=()=>{closeSheet();share(toCSV([...state.expenses].sort((a,b)=>a.date.localeCompare(b.date))));};
+  $('mToday').onclick=()=>{const d=new Date();view={y:d.getFullYear(),m:d.getMonth()};closeSheet();render();};
+}
+
+let tt;function toast(msg){const t=$('toast');t.textContent=msg;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2400);}
+dedupeExisting();
+render();
+smsSync(false);
+</script>
+</body>
+</html>
